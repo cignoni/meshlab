@@ -179,10 +179,11 @@ RichParameterList FilterRansacPlugin::initParameterList(const QAction *action,co
 	RichParameterList parlst;
 	switch(ID(action)) {
     case FP_FIT_BEST_PLANE :
-        parlst.addParam(RichInt("RansacIteration", 100, "Ransac Iteration", "The number of attempt that the ransac algorithm makes to sample three points and guess a plane."));
-        parlst.addParam(RichPercentage("PlaneThr",m.cm.bbox.Diag()/100.0f,0.0f,m.cm.bbox.Diag(),"Plane Threshold","The plane distance threshold used by ransac to decide if a point belong to a plane"));
-        parlst.addParam(RichInt("InlierEstimationNum",100,"Inlier Estim. Num","The number of vertices that I use to estimate the fraction of points that fits a plane."));
-        break;
+        parlst.addParam(RichInt("RansacIteration", 500, "Ransac Iteration", "The number of attempt that the ransac algorithm makes to sample three points and guess a plane."));
+        parlst.addParam(RichPercentage("PlaneThr",m.cm.bbox.Diag()/100.0f,0.0f,m.cm.bbox.Diag(),"Plane Threshold","The plane distance threshold used by ransac to decide if a point belong or not to a plane"));
+        parlst.addParam(RichInt("InlierEstimationNum",100,"Inlier Estim. Num","The number of vertices that are used to estimate the fraction of points that fits a plane."));
+        parlst.addParam(RichBool("ExcludeSel",true,"Exclude Selection","If the "));
+		break;
     case FP_DECOMPOSE_IN_PLANES:
         break;
     default :
