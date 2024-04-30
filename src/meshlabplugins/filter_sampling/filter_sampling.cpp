@@ -39,6 +39,7 @@ $Log: samplefilter.cpp,v $
 #include <vcg/simplex/face/distance.h>
 #include <vcg/complex/algorithms/geodesic.h>
 #include <vcg/complex/algorithms/voronoi_processing.h>
+#include "crease_sampling.h"
 
 #include <QElapsedTimer>
 
@@ -382,6 +383,7 @@ FilterDocSampling::FilterDocSampling()
 		FP_STRATIFIED_SAMPLING,
 		FP_CLUSTERED_SAMPLING,
 		FP_POISSONDISK_SAMPLING,
+		FP_CREASE_AWARE_POISSONDISK_SAMPLING,
 		FP_HAUSDORFF_DISTANCE,
 		FP_DISTANCE_REFERENCE,
 		FP_TEXEL_SAMPLING,
@@ -410,6 +412,7 @@ QString FilterDocSampling::filterName(ActionIDType filterId) const
 	case FP_STRATIFIED_SAMPLING: return QString("Stratified Triangle Sampling");
 	case FP_CLUSTERED_SAMPLING: return QString("Clustered Vertex Sampling");
 	case FP_POISSONDISK_SAMPLING: return QString("Poisson-disk Sampling");
+	case FP_CREASE_AWARE_POISSONDISK_SAMPLING: return QString("Crease-Aware Poisson-disk Sampling");
 	case FP_HAUSDORFF_DISTANCE: return QString("Hausdorff Distance");
 	case FP_DISTANCE_REFERENCE: return QString("Distance from Reference Mesh");
 	case FP_TEXEL_SAMPLING: return QString("Texel Sampling");
@@ -432,6 +435,7 @@ QString FilterDocSampling::pythonFilterName(ActionIDType f) const
 	case FP_STRATIFIED_SAMPLING: return QString("generate_sampling_stratified_triangle");
 	case FP_CLUSTERED_SAMPLING: return QString("generate_sampling_clustered_vertex");
 	case FP_POISSONDISK_SAMPLING: return QString("generate_sampling_poisson_disk");
+	case FP_CREASE_AWARE_POISSONDISK_SAMPLING: return QString("generate_sampling_crease_aware_poisson_disk");
 	case FP_HAUSDORFF_DISTANCE: return QString("get_hausdorff_distance");
 	case FP_DISTANCE_REFERENCE: return QString("compute_scalar_by_distance_from_another_mesh_per_vertex");
 	case FP_TEXEL_SAMPLING: return QString("generate_sampling_texel");
@@ -484,6 +488,14 @@ QString FilterDocSampling::filterInfo(ActionIDType filterId) const
 			"<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular "
 			"Meshes'</b><br>"
 			" Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012");
+	case FP_CREASE_AWARE_POISSONDISK_SAMPLING :
+		return QString("Create a new layer with a Poisson Disk sampling of the current mesh"
+			"The sampling is done prioritizing corners, border edges and crease edges. Based on the algorithm "
+			"described in:<br>"
+			"<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular "
+			"Meshes'</b><br>"
+			" Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012"
+			);
 	case FP_HAUSDORFF_DISTANCE:
 		return QString(
 			"Compute the Hausdorff Distance between two layers, sampling one of the two and "
@@ -545,6 +557,7 @@ int FilterDocSampling::getRequirements(const QAction *action)
   case FP_ELEMENT_SUBSAMPLING :
   case FP_MONTECARLO_SAMPLING :
   case FP_POISSONDISK_SAMPLING :
+  case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
   case FP_POINTCLOUD_SIMPLIFICATION :
   case FP_STRATIFIED_SAMPLING :
   case FP_CLUSTERED_SAMPLING : return 0;
@@ -651,7 +664,10 @@ RichParameterList FilterDocSampling::initParameterList(const QAction *action, co
 	parlst.addParam(RichFloat("ExactNumTolerance", 0.005, "Precise sample number tolerance", "If a precise number of sample is requested, the sample number will be matched with the precision specified here. Precision is specified as a fraction of the sample number. so for example a precision of 0.005 over 1000 samples means that you can get 995 or 1005 samples."));
     parlst.addParam(RichFloat("RadiusVariance", 1, "Radius Variance", "The radius of the disk is allowed to vary between r and r*var. If this parameter is 1 the sampling is the same of the Poisson Disk Sampling"));
     break;
-
+  case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
+	  parlst.addParam(RichFloat("CreaseAngleDeg", 30, "Crease Angle (deg)", "All the edges where the angle bewteen the two shared face normals is greater than the indicated threshold are considered crease edges. Small values means many creases, large values means only very sharp edges are marked as crease."));
+	  
+	  break;
   case FP_TEXEL_SAMPLING :
     parlst.addParam(RichInt (	"TextureW", 512, "Texture Width",
                                     "A sample for each texel is generated, so the desired texture size is need, only samples for the texels falling inside some faces are generated.\n Setting this param to 256 means that you get at most 256x256 = 65536 samples).<br>"
@@ -1140,7 +1156,27 @@ std::map<std::string, QVariant> FilterDocSampling::applyFilter(
 		log("Grid size was %i %i %i (%i allocated on %i)",g[0],g[1],g[2], pp.pds.gridCellNum, g[0]*g[1]*g[2]);
 		log("Poisson Disk Sampling created a new mesh of %i points", mm->cm.vn);
 	} break;
+	case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
+	{
 		
+		float creaseAngleDegThr = par.getFloat("CreaseAngleDeg");
+		md.mm()->updateDataMask(MeshModel::MM_FACEFACETOPO);
+		CMeshO &m = md.mm()->cm;
+		CMeshO edgeSampleMesh;
+		vector<CMeshO::CoordType> edgeSampleVector;
+		
+		float radius = m.bbox.Diag()/100.0;
+		
+		UniformCreaseEdgeSampling(m, // the mesh that has to be sampled
+									   edgeSampleVector, // the vector that will contain the set of points sample on the crease edges (including corners)
+									   radius,  // the Poisson Disk Radius (used if sampleNum==0, setted if sampleNum!=0)
+									   creaseAngleDegThr // the angle that defines the crease edges
+								  );
+		
+		tri::BuildMeshFromCoordVector(edgeSampleMesh,edgeSampleVector);
+		MeshModel* mm0 = md.addNewMesh(edgeSampleMesh,"Edge Samples",false);		
+		log("Crease Aware Poisson Disk Sampling crease %f", creaseAngleDegThr);
+	} break;
 	case FP_HAUSDORFF_DISTANCE :
 	{
 		MeshModel* mm0 = md.getMesh(par.getMeshId("SampledMesh"));  // surface where we choose the random samples
@@ -1497,6 +1533,7 @@ FilterPlugin::FilterClass FilterDocSampling::getClass(const QAction *action) con
   case FP_STRATIFIED_SAMPLING :
   case FP_CLUSTERED_SAMPLING :
   case FP_POISSONDISK_SAMPLING :
+  case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
   case FP_REGULAR_RECURSIVE_SAMPLING :
   case FP_TEXEL_SAMPLING  :  return FilterDocSampling::Sampling;
   case FP_UNIFORM_MESH_RESAMPLING: return FilterDocSampling::Remeshing;
@@ -1537,6 +1574,7 @@ FilterPlugin::FilterArity FilterDocSampling::filterArity(const QAction * filter 
     case FP_REGULAR_RECURSIVE_SAMPLING :
     case FP_UNIFORM_MESH_RESAMPLING:
     case FP_POINTCLOUD_SIMPLIFICATION :
+	case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
         return FilterPlugin::SINGLE_MESH;
     case FP_DISTANCE_REFERENCE :
     case FP_HAUSDORFF_DISTANCE :
