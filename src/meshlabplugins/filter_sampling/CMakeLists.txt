@@ -4,7 +4,7 @@
 
 set(SOURCES filter_sampling.cpp)
 
-set(HEADERS filter_sampling.h)
+set(HEADERS filter_sampling.h crease_sampling.h)
 
 add_meshlab_plugin(filter_sampling ${SOURCES} ${HEADERS})
 

@@ -666,6 +666,10 @@ RichParameterList FilterDocSampling::initParameterList(const QAction *action, co
     break;
   case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
 	  parlst.addParam(RichFloat("CreaseAngleDeg", 30, "Crease Angle (deg)", "All the edges where the angle bewteen the two shared face normals is greater than the indicated threshold are considered crease edges. Small values means many creases, large values means only very sharp edges are marked as crease."));
+	  parlst.addParam(RichPercentage("Radius",  1.0, 0, md.mm()->cm.bbox.Diag(), "Explicit Radius", "The Poisson disk radius"));
+	  parlst.addParam(RichBool("SampleBoundary", true, "Sample Boundary Edges", "If true the boundary edges are considered as crease edges and sampled accordingly."));
+	  
+	  
 	  
 	  break;
   case FP_TEXEL_SAMPLING :
@@ -1162,19 +1166,22 @@ std::map<std::string, QVariant> FilterDocSampling::applyFilter(
 		float creaseAngleDegThr = par.getFloat("CreaseAngleDeg");
 		md.mm()->updateDataMask(MeshModel::MM_FACEFACETOPO);
 		CMeshO &m = md.mm()->cm;
-		CMeshO edgeSampleMesh;
+		CMeshO edgeSampleMesh,poissonSampleMesh;
 		vector<CMeshO::CoordType> edgeSampleVector;
+		vector<CMeshO::CoordType> poissonSampleVector;
 		
-		float radius = m.bbox.Diag()/100.0;
+		float radius = par.getAbsPerc("Radius");
 		
-		UniformCreaseEdgeSampling(m, // the mesh that has to be sampled
-									   edgeSampleVector, // the vector that will contain the set of points sample on the crease edges (including corners)
-									   radius,  // the Poisson Disk Radius (used if sampleNum==0, setted if sampleNum!=0)
-									   creaseAngleDegThr // the angle that defines the crease edges
-								  );
+		CreaseAwarePoissonDiskSampling(m, // the mesh that has to be sampled
+									   edgeSampleVector,
+									   poissonSampleVector,radius,creaseAngleDegThr);
 		
 		tri::BuildMeshFromCoordVector(edgeSampleMesh,edgeSampleVector);
-		MeshModel* mm0 = md.addNewMesh(edgeSampleMesh,"Edge Samples",false);		
+		log(qPrintable(md.mm()->label()+"EdgeSamples")); 
+		
+		MeshModel* mm0 = md.addNewMesh(edgeSampleMesh, md.mm()->label()+"EdgeSamples",false);
+		tri::BuildMeshFromCoordVector(poissonSampleMesh,poissonSampleVector);
+		MeshModel* mm1 = md.addNewMesh(poissonSampleMesh, md.mm()->label()+"PoissonSamples",false);		
 		log("Crease Aware Poisson Disk Sampling crease %f", creaseAngleDegThr);
 	} break;
 	case FP_HAUSDORFF_DISTANCE :
