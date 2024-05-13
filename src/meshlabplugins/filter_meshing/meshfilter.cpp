@@ -415,9 +415,10 @@ QString ExtraMeshFilterPlugin::filterInfo(ActionIDType filterID) const
 	case FP_QUAD_PAIRING                       : return tr("Convert a tri-mesh into a quad mesh by pairing triangles.");
 	case FP_QUAD_DOMINANT                      : return tr("Convert a tri-mesh into a quad-dominant mesh by pairing suitable triangles.");
 	case FP_MAKE_PURE_TRI                      : return tr("Convert into a tri-mesh by splitting any polygonal face.");
-	case FP_FAUX_CREASE                        : return tr("It select the crease edges of a mesh according to edge dihedral angle.<br>"
-			                                               "Angle between face normal is considered signed according to convexity/concavity."
-			                                               "Convex angles are positive and concave are negative.");
+	case FP_FAUX_CREASE                        : return tr("It select the crease edges of a mesh according to the dihedral angle between two faces.<br>"
+			                                               "Dihedral angle is considered signed according to convexity/concavity with respect to face orientation. "
+			                                               "Convex angles are positive (mountain ridges) and concave are negative (valleys).<br>"
+			                                               "Selection is done by marking the faux bit of the edge.");
 	case FP_VATTR_SEAM                         : return tr("Make all selected vertex attributes connectivity-independent:<br/>"
 			                                               "vertices are duplicated whenever two or more selected wedge or face attributes do not match.<br/>"
 			                                               "This is particularly useful for GPU-friendly mesh layout, where a single index must be used to access all required vertex attributes.");
@@ -701,8 +702,8 @@ RichParameterList ExtraMeshFilterPlugin::initParameterList(const QAction * actio
 		break;
 
 	case FP_FAUX_CREASE:
-		parlst.addParam(RichFloat ("AngleDegNeg",-45.0f,"Concave Angle Thr. (deg)","Concave Dihedral Angle threshold for considering an edge a crease. If the normals between two faces forms an concave diheadral angle smaller than the threshold the edge is considered a crease."));
-		parlst.addParam(RichFloat ("AngleDegPos", 45.0f,"Convex Angle Thr. (deg)","The angle threshold for considering an edge a crease. If the normals between two faces forms an angle larger than the threshold the edge is considered a crease."));
+		parlst.addParam(RichFloat ("AngleDegNeg",-45.0f,"Concave Angle Thr. (deg)","Concave Dihedral Angle threshold for considering an edge a crease. If the normals between two faces form an angle smaller than the threshold the edge is considered a crease."));
+		parlst.addParam(RichFloat ("AngleDegPos", 45.0f,"Convex Angle Thr. (deg)", "The angle threshold for considering an edge a crease. If the normals between two faces forms an angle larger than the threshold the edge is considered a crease."));
 		break;
 
 	case FP_NORMAL_EXTRAPOLATION:
@@ -1715,21 +1716,21 @@ std::map<std::string, QVariant> ExtraMeshFilterPlugin::applyFilter(
 		m.clearDataMask(MeshModel::MM_POLYGONAL);
 	} break;
 
-	case FP_FAUX_CREASE :
+	case FP_FAUX_CREASE : 
 	{
 		m.updateDataMask(MeshModel::MM_FACEFACETOPO);
 		Scalarm AngleDegNeg = par.getFloat("AngleDegNeg");
 		Scalarm AngleDegPos = par.getFloat("AngleDegPos");
-		//		tri::UpdateFlags<CMeshO>::FaceFauxCrease(m.cm,math::ToRad(AngleDeg));
 		tri::UpdateFlags<CMeshO>::FaceEdgeSelSignedCrease(m.cm, math::ToRad(AngleDegNeg), math::ToRad(AngleDegPos));
+		tri::MeshAssert<CMeshO>::ConsistentFaceEdgeSelection(m.cm);
+		log("Selected %i Edges", tri::UpdateSelection<CMeshO>::FaceEdgeCount(m.cm));
 		m.updateDataMask(MeshModel::MM_POLYGONAL);
 	} break;
 
 	case FP_FAUX_EXTRACT :
 	{
-		//WARNING!!!! the RenderMode(GLW::DMWire) should be useless but...
-		MeshModel *em= md.addNewMesh("","EdgeMesh",true/*,RenderMode(GLW::DMWire)*/);
-		BuildFromFaceEdgeSel(m.cm,em->cm);
+		MeshModel *em= md.addNewMesh("","EdgeMesh",true);
+		BuildFromFaceEdgeSel(m.cm,em->cm); 
 	} break;
 
 	case FP_VATTR_SEAM :
