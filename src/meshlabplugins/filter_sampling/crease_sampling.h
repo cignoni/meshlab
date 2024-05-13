@@ -21,6 +21,7 @@
 *                                                                           *
 ****************************************************************************/
 #pragma once
+#include "vcg/complex/algorithms/update/color.h"
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/point_sampling.h>
 namespace vcg
@@ -28,7 +29,7 @@ namespace vcg
 
 template <class MeshType>
 void UniformCreaseEdgeSampling(MeshType &m, // the mesh that has to be sampled
-							   std::vector<typename MeshType::CoordType> &UniformEdgeSamples, // the vector that will contain the set of points sample on the crease edges (including corners)
+							   MeshType &UniformEdgeSampleMesh, // the vector that will contain the set of points sample on the crease edges (including corners)
 							   typename MeshType::ScalarType &radius,  // the Poisson Disk Radius
 							   float creaseAngleDeg, // the angle that defines the crease edges
 							   bool includeBoundaryEdges=true
@@ -36,20 +37,37 @@ void UniformCreaseEdgeSampling(MeshType &m, // the mesh that has to be sampled
 {
 // we search for all the edges where the difference between the normals of the two incident faces 
  // is greater than a given threshold
-
-  MeshType edgeMesh; // will contains all the crease edges
-  float cosThr = cosf( math::ToRad(creaseAngleDeg) );
-  for(auto fi = m.face.begin(); fi != m.face.end(); ++fi)
-  {
-    auto &f = *fi;
-    for(int i = 0; i < 3; i++)
-    {
-		float dot = f.N() * f.FFp(i)->N();
-		if( ((dot < cosThr) && (f.FFp(i) > &f) ) ||
-			(includeBoundaryEdges && face::IsBorder(f,i)) )
-			tri::Allocator<MeshType>::AddEdge(edgeMesh, f.P0(i), f.P1(i));
-    }
+	
+	MeshType edgeMesh; // will contains all the crease edges
+	float cosThr = cosf( math::ToRad(creaseAngleDeg) );
+	int boundaryCnt=0;
+	int creaseCnt=0;
+	for(auto fi = m.face.begin(); fi != m.face.end(); ++fi)
+	{
+		auto &f = *fi;
+		for(int i = 0; i < 3; i++)
+		{
+			float dot = f.N() * f.FFp(i)->N();
+			if( ((dot < cosThr) && (f.FFp(i) > &f) )){
+				creaseCnt++;
+				tri::Allocator<MeshType>::AddEdge(edgeMesh, f.P0(i), f.P1(i));
+				edgeMesh.edge.back().V(0)->N() = f.V0(i)->N();
+				edgeMesh.edge.back().V(1)->N() = f.V1(i)->N();
+			}
+			else
+			{			
+				if(includeBoundaryEdges && face::IsBorder(f,i)) {
+					boundaryCnt++;
+					tri::Allocator<MeshType>::AddEdge(edgeMesh, f.P0(i), f.P1(i));
+					edgeMesh.edge.back().V(0)->N() = f.V0(i)->N();
+					edgeMesh.edge.back().V(1)->N() = f.V1(i)->N();
+				}
+			}
+		}
   }
+	
+  //printf("Collected %i crease edges and %i boundary edges\n",creaseCnt,boundaryCnt);
+  
 
   tri::UpdateBounding<MeshType>::Box(edgeMesh); 
   tri::Clean<MeshType>::RemoveDuplicateVertex(edgeMesh);
@@ -57,19 +75,26 @@ void UniformCreaseEdgeSampling(MeshType &m, // the mesh that has to be sampled
   tri::Clean<MeshType>::SelectNonManifoldVertexOnEdgeMesh(edgeMesh);
   int nonManifVertNum = tri::UpdateSelection<MeshType>::VertexCount(edgeMesh);
   printf("Selected %i non manifold vertex number\n",nonManifVertNum);
+  tri::UpdateColor<MeshType>::PerVertexConstant(edgeMesh,Color4b::Red,true);
+  tri::Clean<MeshType>::SplitSelectedVertexOnEdgeMesh(edgeMesh);
+  
+  tri::Allocator<MeshType>::CompactEveryVector(edgeMesh);
+  tri::Clean<MeshType>::SelectCreaseVertexOnEdgeMeshEE(edgeMesh, math::ToRad(creaseAngleDeg));
+  int creaseVertNum = tri::UpdateSelection<MeshType>::VertexCount(edgeMesh);
+  printf("Selected %i crease vertex number\n",creaseVertNum);
   tri::Clean<MeshType>::SplitSelectedVertexOnEdgeMesh(edgeMesh);
   tri::Allocator<MeshType>::CompactEveryVector(edgeMesh);
   
-  tri::TrivialSampler<MeshType> ts(UniformEdgeSamples);  
-  tri::SurfaceSampling<MeshType, tri::TrivialSampler < MeshType> >::EdgeMeshUniform(edgeMesh, ts, radius); 
+  tri::MeshSampler<MeshType> ts(UniformEdgeSampleMesh);  
+  tri::SurfaceSampling<MeshType, tri::MeshSampler < MeshType> >::EdgeMeshUniform(edgeMesh, ts, radius); 
 
-  printf("Sampled %i points\n",ts.SampleVec().size());
+  printf("Sampled %i points\n",edgeMesh.vn);
 }
 
 template <class MeshType>
 void CreaseAwarePoissonDiskSampling(MeshType &m, // the mesh that has to be sampled
-					 std::vector<typename MeshType::CoordType> &edgeSamples, // the vector that will contain the set of points
-                     std::vector<typename MeshType::CoordType> &poissonSamples, // the vector that will contain the set of points
+					 MeshType &edgeSampleMesh, // the point cloud that will contain the set of points on the edges
+                     MeshType &poissonMesh, // the point cloud that will contain the set of points of the poisson disk sampling
                      typename MeshType::ScalarType &radius,  // the Poisson Disk Radius (used if sampleNum==0, setted if sampleNum!=0)
                      float creaseAngleDeg, // the angle that defines the crease edges
                      unsigned int randSeed=0)
@@ -82,22 +107,20 @@ void CreaseAwarePoissonDiskSampling(MeshType &m, // the mesh that has to be samp
   int estimatedSampleNum = tri::SurfaceSampling<MeshType, BaseSampler>::ComputePoissonSampleNum(m, radius);
   
   int t0=clock();
-  UniformCreaseEdgeSampling(m, edgeSamples, radius, creaseAngleDeg);
-  MeshType meshCreaseEdgeSamples;
-  tri::BuildMeshFromCoordVector(meshCreaseEdgeSamples,edgeSamples);
+  UniformCreaseEdgeSampling(m, edgeSampleMesh, radius, creaseAngleDeg);
  
   MeshType MontecarloMesh; // it will contains the samples generated by the montecarlo sampling over the input mesh 
   tri::MeshSampler<MeshType> mcSampler(MontecarloMesh);
   tri::SurfaceSampling<MeshType, tri::MeshSampler<MeshType> >::Montecarlo(m, mcSampler, estimatedSampleNum*20);
   tri::UpdateBounding<MeshType>::Box(MontecarloMesh);
 
-  typename tri::SurfaceSampling<MeshType, tri::TrivialSampler < MeshType> >::PoissonDiskParam pp2;
-  pp2.preGenMesh = &meshCreaseEdgeSamples;
+  typename tri::SurfaceSampling<MeshType, tri::MeshSampler < MeshType> >::PoissonDiskParam pp2;
+  pp2.preGenMesh = &edgeSampleMesh;
   pp2.preGenFlag = true;
   pp2.bestSamplePoolSize = 20;
   
-  tri::TrivialSampler<MeshType> pdSampler(poissonSamples);   
-  tri::SurfaceSampling<MeshType, tri::TrivialSampler < MeshType> >::PoissonDiskPruning(pdSampler, MontecarloMesh, radius, pp2);
+  tri::MeshSampler<MeshType> pdSampler(poissonMesh);   
+  tri::SurfaceSampling<MeshType, tri::MeshSampler < MeshType> >::PoissonDiskPruning(pdSampler, MontecarloMesh, radius, pp2);
 }
 
 

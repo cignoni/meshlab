@@ -665,8 +665,8 @@ RichParameterList FilterDocSampling::initParameterList(const QAction *action, co
     parlst.addParam(RichFloat("RadiusVariance", 1, "Radius Variance", "The radius of the disk is allowed to vary between r and r*var. If this parameter is 1 the sampling is the same of the Poisson Disk Sampling"));
     break;
   case FP_CREASE_AWARE_POISSONDISK_SAMPLING:
-	  parlst.addParam(RichFloat("CreaseAngleDeg", 30, "Crease Angle (deg)", "All the edges where the angle bewteen the two shared face normals is greater than the indicated threshold are considered crease edges. Small values means many creases, large values means only very sharp edges are marked as crease."));
-	  parlst.addParam(RichPercentage("Radius",  1.0, 0, md.mm()->cm.bbox.Diag(), "Explicit Radius", "The Poisson disk radius"));
+	  parlst.addParam(RichFloat("CreaseAngleDeg", 30, "Crease Angle (deg)", "All the edges where the angle bewteen the two shared face normals is greater than the indicated threshold are considered crease edges. Small values means many creases, large values means only very sharp edges are marked as crease. This angle is also used to detect the crease along a chain of edge (like the corners on the boundary of a quadrate shape)"));
+	  parlst.addParam(RichPercentage("Radius",  md.mm()->cm.bbox.Diag()/100.0, 0, md.mm()->cm.bbox.Diag(), "Explicit Radius", "The Poisson disk radius"));
 	  parlst.addParam(RichBool("SampleBoundary", true, "Sample Boundary Edges", "If true the boundary edges are considered as crease edges and sampled accordingly."));
 	  
 	  
@@ -1166,21 +1166,17 @@ std::map<std::string, QVariant> FilterDocSampling::applyFilter(
 		float creaseAngleDegThr = par.getFloat("CreaseAngleDeg");
 		md.mm()->updateDataMask(MeshModel::MM_FACEFACETOPO);
 		CMeshO &m = md.mm()->cm;
-		CMeshO edgeSampleMesh,poissonSampleMesh;
-		vector<CMeshO::CoordType> edgeSampleVector;
-		vector<CMeshO::CoordType> poissonSampleVector;
-		
+		CMeshO edgeSampleMesh,poissonSampleMesh;		
 		float radius = par.getAbsPerc("Radius");
 		
 		CreaseAwarePoissonDiskSampling(m, // the mesh that has to be sampled
-									   edgeSampleVector,
-									   poissonSampleVector,radius,creaseAngleDegThr);
+									   edgeSampleMesh,
+									   poissonSampleMesh,
+									   radius,creaseAngleDegThr);
 		
-		tri::BuildMeshFromCoordVector(edgeSampleMesh,edgeSampleVector);
 		log(qPrintable(md.mm()->label()+"EdgeSamples")); 
 		
 		MeshModel* mm0 = md.addNewMesh(edgeSampleMesh, md.mm()->label()+"EdgeSamples",false);
-		tri::BuildMeshFromCoordVector(poissonSampleMesh,poissonSampleVector);
 		MeshModel* mm1 = md.addNewMesh(poissonSampleMesh, md.mm()->label()+"PoissonSamples",false);		
 		log("Crease Aware Poisson Disk Sampling crease %f", creaseAngleDegThr);
 	} break;
