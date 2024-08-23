@@ -256,7 +256,7 @@ bool parseTRI(const std::string &filename, CMeshO &m) {
 		{
 			m.textures.push_back(qUtf8Printable(texPNG));
 			qDebug("Loading texture %s",qUtf8Printable(texPNG));
-			QStringList numList = infoPNG.split(" ", QString::SkipEmptyParts);
+			QStringList numList = infoPNG.split(" ", Qt::SkipEmptyParts);
 			qDebug("Found %i numbers for %i faces",numList.size(),numFaces);
 			for (int i = 0; i < numFaces ; ++i) 
 						{
