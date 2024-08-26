@@ -436,7 +436,7 @@ TransferFunction::TransferFunction(QString fileName)
         if ( !line.startsWith(CSV_FILE_COMMENT) )
         {
             //a channel line found. Splitting it to find the values
-            splittedString = line.split(CSV_FILE_SEPARATOR, QString::SkipEmptyParts);
+            splittedString = line.split(CSV_FILE_SEPARATOR, Qt::SkipEmptyParts);
             assert( (splittedString.size() % 2) == 0 );
 
             //for each couple of values a key is built and added to the current channel

@@ -554,7 +554,7 @@ void EditReferencingPlugin::loadFromFile()  //import reference list
 			size_t sind = 0;
 			while ((!found) || (sind<possible_separators.size()))
 			{
-				tokenizedLine = firstline.split(possible_separators[sind], QString::SkipEmptyParts);
+				tokenizedLine = firstline.split(possible_separators[sind], Qt::SkipEmptyParts);
 				if (tokenizedLine.size() == 4 || (tokenizedLine.size() == 5 && firstline.right(1) == possible_separators[sind]))
 				{
 					newX = tokenizedLine.at(1).toDouble(&parseXOK);
@@ -578,7 +578,7 @@ void EditReferencingPlugin::loadFromFile()  //import reference list
 			}
 
 			// inserting first line
-			tokenizedLine = firstline.split(separator, QString::SkipEmptyParts);
+			tokenizedLine = firstline.split(separator, Qt::SkipEmptyParts);
 			newX = tokenizedLine.at(1).toDouble(&parseXOK);
 			newY = tokenizedLine.at(2).toDouble(&parseYOK);
 			newZ = tokenizedLine.at(3).toDouble(&parseZOK);
@@ -594,7 +594,7 @@ void EditReferencingPlugin::loadFromFile()  //import reference list
 			while (!openFile.atEnd()) {
 				QString newline = QString(openFile.readLine()).simplified();
 
-				tokenizedLine = newline.split(separator, QString::SkipEmptyParts);
+				tokenizedLine = newline.split(separator, Qt::SkipEmptyParts);
 				if (tokenizedLine.size() == 4 || (tokenizedLine.size() == 5 && newline.right(1) == separator))
 				{
 					newX = tokenizedLine.at(1).toDouble(&parseXOK);
@@ -1051,7 +1051,7 @@ void EditReferencingPlugin::loadDistances()
 			size_t sind = 0;
 			while ((!found) || (sind<possible_separators.size()))
 			{
-				tokenizedLine = firstline.split(possible_separators[sind], QString::SkipEmptyParts);
+				tokenizedLine = firstline.split(possible_separators[sind], Qt::SkipEmptyParts);
 				if (tokenizedLine.size() == 8 || (tokenizedLine.size() == 9 && firstline.right(1) == possible_separators[sind]))
 				{
 					newXa = tokenizedLine.at(1).toDouble(&parseXaOK);
@@ -1079,7 +1079,7 @@ void EditReferencingPlugin::loadDistances()
 			}
 
 			// inserting first line
-			tokenizedLine = firstline.split(separator, QString::SkipEmptyParts);
+			tokenizedLine = firstline.split(separator, Qt::SkipEmptyParts);
 			newXa = tokenizedLine.at(1).toDouble(&parseXaOK);
 			newYa = tokenizedLine.at(2).toDouble(&parseYaOK);
 			newZa = tokenizedLine.at(3).toDouble(&parseZaOK);
@@ -1102,7 +1102,7 @@ void EditReferencingPlugin::loadDistances()
 			while (!openFile.atEnd()) {
 				QString newline = QString(openFile.readLine()).simplified();
 
-				tokenizedLine = newline.split(separator, QString::SkipEmptyParts);
+				tokenizedLine = newline.split(separator, Qt::SkipEmptyParts);
 				if (tokenizedLine.size() == 8 || (tokenizedLine.size() == 9 && newline.right(1) == separator))
 				{
 					newXa = tokenizedLine.at(1).toDouble(&parseXaOK);

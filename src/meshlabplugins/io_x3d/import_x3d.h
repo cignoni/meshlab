@@ -178,7 +178,7 @@ namespace io {
 				if(inl.attribute("load", "true") == "true")
 				{
 					QString url = inl.attribute("url");
-					QStringList paths = url.split(" ", QString::SkipEmptyParts);
+					QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 					int i = 0;
 					bool found = false;
 					QStringList vrmlPaths = QStringList();
@@ -260,7 +260,7 @@ namespace io {
 			{
 				QDomElement exProtoDecl = exProtoDeclNodes.at(en).toElement();
 				QString url = exProtoDecl.attribute("url");
-				QStringList paths = url.split(" ", QString::SkipEmptyParts);
+				QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 				int i = 0;
 				bool found = false;
 				QStringList vrmlPaths = QStringList();
@@ -337,7 +337,7 @@ namespace io {
 				while (t < vrmlPaths.size() && !found)
 				{
 					QDomDocument* document = new QDomDocument();
-					QStringList list = vrmlPaths.at(i).split("#", QString::SkipEmptyParts);
+					QStringList list = vrmlPaths.at(i).split("#", Qt::SkipEmptyParts);
 					QString path = list.at(0);
 					QString protoName = "";
 					if (list.size()>1)
@@ -495,7 +495,7 @@ namespace io {
 			}
 			QString value = elem.attribute(attribute, defValue);
 			value.replace(",", " ");
-			list = value.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+			list = value.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
 		}
 
 		
@@ -583,7 +583,7 @@ namespace io {
 					{
 						if (iterValue != fields.end())
 						{
-							QStringList defList = iterValue->second.split(" ", QString::SkipEmptyParts);
+							QStringList defList = iterValue->second.split(" ", Qt::SkipEmptyParts);
 							std::map<QString, QDomElement>::const_iterator iterDefMap;
 							for (int j = 0; j < defList.size(); j++)
 							{
@@ -755,7 +755,7 @@ namespace io {
 						QString url = imageTexture.attribute("url");
 						if (url != "")
 						{
-							QStringList paths = url.split(" ", QString::SkipEmptyParts);
+							QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 							int j = 0;
 							bool load = false;
 							while (j < paths.size() && !load)
@@ -1962,7 +1962,7 @@ namespace io {
 					result = solveDefUse(imageTexture, defMap, imageTexture, info);
 					if (result != E_NOERROR) return result;
 					QString url = imageTexture.attribute("url");
-					QStringList paths = url.split(" ", QString::SkipEmptyParts);
+					QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 					int j = 0;
 					bool found = false;
 					while (j < paths.size() && !found)
@@ -2143,7 +2143,7 @@ namespace io {
 				info->lineNumberError = root.lineNumber();
 				return E_INVALIDINLINEURL;
 			}
-			QStringList paths = url.split(" ", QString::SkipEmptyParts);
+			QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 			int i = 0;
 			bool found = false;
 			std::map<QString, QDomNode*>::const_iterator iter;
@@ -2201,7 +2201,7 @@ namespace io {
 				info->lineNumberError = root.lineNumber();
 				return E_MULTINAMEPROTODECL;
 			}
-			QStringList paths = url.split(" ", QString::SkipEmptyParts);
+			QStringList paths = url.split(" ", Qt::SkipEmptyParts);
 			int i = 0;
 			bool found = false;
 			std::map<QString, QDomNode*>::const_iterator iter;
@@ -2295,7 +2295,7 @@ namespace io {
 			if (filename != "")
 			{
 				QDomDocument docChild(filename);
-				QFile file(filename.split("#", QString::SkipEmptyParts).at(0));
+				QFile file(filename.split("#", Qt::SkipEmptyParts).at(0));
 				file.open(QIODevice::ReadOnly);
 				docChild.setContent(&file);
 				QDomNodeList exProtoDeclare = docChild.elementsByTagName("ExternProtoDeclare");
@@ -2447,7 +2447,7 @@ namespace io {
 				QString orientation = root.attribute("orientation");
 				QString position = root.attribute("position", "0 0 10");
 				QStringList list;
-				list = orientation.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+				list = orientation.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
 				if (list.size() == 4)
 				{
 					rot = CoordType(list.at(0).toFloat(), list.at(1).toFloat(), list.at(2).toFloat());
@@ -2460,7 +2460,7 @@ namespace io {
 					angle = 0.0;
 				}
 				list.clear();
-				list = position.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+				list = position.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
 				if (list.size() == 3)
 					pos = CoordType(list.at(0).toFloat(), list.at(1).toFloat(), list.at(2).toFloat()); 
 				else

@@ -430,7 +430,7 @@ void EditMutualCorrsPlugin::loadFromFile()  //import reference list
             while (!openFile.atEnd()) {
                 QString newline = QString(openFile.readLine()).simplified();
 
-                tokenizedLine = newline.split(" ", QString::SkipEmptyParts);
+                tokenizedLine = newline.split(" ", Qt::SkipEmptyParts);
                 if(tokenizedLine.size()==7 )
                 {
                     pointID.push_back(tokenizedLine.at(1));
